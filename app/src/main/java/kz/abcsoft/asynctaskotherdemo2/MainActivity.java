@@ -19,21 +19,34 @@ import java.net.URL;
 
 public class MainActivity extends ActionBarActivity {
 
-    ImageView logoImage ;
+    ProgressBar progress;
+    ImageView[] targetImage = new ImageView[3];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        logoImage = (ImageView) findViewById(R.id.ivFromSite);
+        targetImage[0] = (ImageView) findViewById(R.id.target0);
+        targetImage[1] = (ImageView) findViewById(R.id.target1);
+        targetImage[2] = (ImageView) findViewById(R.id.target2);
 
-        String urlImage = "http://developer.alexanderklimov.ru/android/images/android_cat.jpg";
-        URL myUrl ;
+        progress = (ProgressBar) findViewById(R.id.progress);
+
+        // Загружаем картинки из интернета
+        String urlImage0 = "http://developer.alexanderklimov.ru/android/images/pinkhellokitty.jpg";
+        String urlImage1 = "http://developer.alexanderklimov.ru/android/images/keyboard-cat.jpg";
+        String urlImage2 = "http://developer.alexanderklimov.ru/android/images/cat-tips.jpg";
+
+        URL myURL0, myURL1, myURL2;
 
         try{
-            myUrl = new URL(urlImage) ;
-            new MyAsyncTask(logoImage).execute(myUrl) ;
+            myURL0 = new URL(urlImage0);
+            myURL1 = new URL(urlImage1);
+            myURL2 = new URL(urlImage2);
+
+            new MyAsyncTask(3, targetImage, progress).execute(myURL0, myURL1,myURL2);
+
         } catch(MalformedURLException e){
             e.printStackTrace();
         }
@@ -61,12 +74,21 @@ public class MainActivity extends ActionBarActivity {
         return super.onOptionsItemSelected(item);
     }
 
-    private class MyAsyncTask extends AsyncTask<URL, Void, Bitmap> {
+    private class MyAsyncTask extends AsyncTask<URL, Integer, Void> {
 
-        ImageView ivLogo;
+        ImageView[] aIV;
+        Bitmap[] aBM;
+        ProgressBar progressBar;
 
-        public MyAsyncTask(ImageView iv) {
-            ivLogo = iv;
+        public MyAsyncTask(int numberOfImage, ImageView[] iv, ProgressBar pb) {
+            aBM = new Bitmap[numberOfImage];
+
+            aIV = new ImageView[numberOfImage];
+            for (int i = 0; i < numberOfImage; i++) {
+                aIV[i] = iv[i];
+            }
+
+            progressBar = pb;
         }
 
         @Override
@@ -75,33 +97,48 @@ public class MainActivity extends ActionBarActivity {
         }
 
         @Override
-        protected Bitmap doInBackground(URL... urls) {
-            Bitmap networkBitmap = null;
+        protected Void doInBackground(URL... urls) {
+            if (urls.length > 0) {
+                for (int i = 0; i < urls.length; i++) {
+                    URL networkUrl = urls[i];
 
-            URL networkUrl = urls[0];
+                    try {
+                        aBM[i] = BitmapFactory.decodeStream(networkUrl
+                                .openConnection().getInputStream());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
 
-            try{
-                networkBitmap = BitmapFactory.decodeStream(networkUrl.openConnection().getInputStream()) ;
-            } catch (IOException e){
-                e.printStackTrace();
+                    publishProgress(i);
+
+                    // делаем искусственую задержку (необязательно)
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
             }
-
-
-            return networkBitmap ;
+            return null;
         }
 
-//        @Override
-//        protected void onProgressUpdate(Integer... values) {
-//            super.onProgressUpdate(values);
-//
-//            this.progress.setProgress(values[0]);
-//        }
+        @Override
+        protected void onProgressUpdate(Integer... values) {
+            if (values.length > 0) {
+                for (int i = 0; i < values.length; i++) {
+                    aIV[values[i]].setImageBitmap(aBM[values[i]]);
+                    progressBar.setProgress(values[i] * 50);
+                }
+            }
+        }
 
         @Override
-        protected void onPostExecute(Bitmap bitmap) {
-            super.onPostExecute(bitmap);
+        protected void onPostExecute(Void result) {
+            super.onPostExecute(result);
 
-            ivLogo.setImageBitmap(bitmap);
+            Toast.makeText(getBaseContext(), "Загрузка завершена",
+                    Toast.LENGTH_LONG).show();
         }
     }
 }
